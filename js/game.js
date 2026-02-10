@@ -73,6 +73,8 @@ const Game = {
     },
 
     _bindInput() {
+        let isPressing = false;
+
         const getClientX = (e) => {
             if (typeof e.clientX === 'number') return e.clientX;
 
@@ -107,12 +109,23 @@ const Game = {
             if (typeof e.button === 'number' && e.button !== 0) return;
             if (e.cancelable) e.preventDefault();
 
+            isPressing = true;
             AudioManager.unlock();
+            onMove(e);
+        };
+
+        const onUp = (e) => {
+            if (!isPressing) return;
+            isPressing = false;
+            if (e && e.cancelable) e.preventDefault();
+            if (this.state !== 'playing') return;
+
             onMove(e);
             this._drop();
         };
 
-        const onUp = (e) => {
+        const onCancel = (e) => {
+            isPressing = false;
             if (e && e.cancelable) e.preventDefault();
         };
 
@@ -120,7 +133,7 @@ const Game = {
             this.canvas.addEventListener('pointermove', onMove, { passive: false });
             this.canvas.addEventListener('pointerdown', onDown, { passive: false });
             this.canvas.addEventListener('pointerup', onUp, { passive: false });
-            this.canvas.addEventListener('pointercancel', onUp, { passive: false });
+            this.canvas.addEventListener('pointercancel', onCancel, { passive: false });
         } else {
             this.canvas.addEventListener('mousemove', onMove);
             this.canvas.addEventListener('mousedown', onDown);
@@ -128,7 +141,7 @@ const Game = {
             this.canvas.addEventListener('touchmove', onMove, { passive: false });
             this.canvas.addEventListener('touchstart', onDown, { passive: false });
             this.canvas.addEventListener('touchend', onUp, { passive: false });
-            this.canvas.addEventListener('touchcancel', onUp, { passive: false });
+            this.canvas.addEventListener('touchcancel', onCancel, { passive: false });
         }
     },
     _drop() {

@@ -245,107 +245,109 @@ const AudioManager = {
     bgmStarted: false,
     sfLoading: false,
     sfLoaded: false,
-
     init() {
         this.muted = localStorage.getItem('suika_muted') === 'true';
         this._updateMuteButton();
+
         const muteBtn = document.getElementById('mute-btn');
         if (muteBtn) {
             muteBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // 오디오 잠금 해제와 충돌 방지
+                e.stopPropagation();
                 this.toggleMute();
             });
         }
 
-        const resume = () => {
-            const c = this._getContext();
-            if (c && c.state === 'suspended') {
-                c.resume();
-            }
+        const handleInteraction = () => {
+            const ctx = this._getContext();
+            if (!ctx) return;
 
-            // 모바일 사운드 잠금 해제를 위한 무음 재생
-            if (c && c.state === 'running' && !this.bgmStarted && !this.muted) {
-                const buffer = c.createBuffer(1, 1, 22050);
-                const source = c.createBufferSource();
-                source.buffer = buffer;
-                source.connect(c.destination);
-                source.start(0);
-                this._ensureBGM();
+            if (ctx.state === 'suspended') {
+                ctx.resume().then(() => {
+                    if (ctx.state === 'running') {
+                        this._onAudioUnlocked();
+                    }
+                }).catch(err => console.error('Audio resume failed:', err));
+            } else if (ctx.state === 'running') {
+                this._onAudioUnlocked();
             }
         };
 
-        // iOS Safari 등 다양한 모바일 브라우저 대응을 위한 여러 이벤트 등록
-        ['click', 'touchstart', 'pointerdown', 'keydown'].forEach(evt => {
-            document.addEventListener(evt, resume, { once: true });
+        ['click', 'touchstart', 'touchend', 'mousedown', 'keydown'].forEach(evt => {
+            document.addEventListener(evt, handleInteraction, { passive: false });
         });
+    },
+
+    _onAudioUnlocked() {
+        if (this.bgmStarted || this.muted) return;
+
+        // 무음 오실레이터로 하드웨어 채널 점유
+        try {
+            const ctx = this._getContext();
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            g.gain.value = 0.0001;
+            osc.connect(g);
+            g.connect(ctx.destination);
+            osc.start(0);
+            osc.stop(0.05);
+
+            this._loadSoundFonts().then(() => {
+                this._ensureBGM();
+            });
+        } catch (e) { }
     },
 
     _getContext() {
         if (!this.ctx) {
-            const c = new (window.AudioContext || window.webkitAudioContext)();
-            this.ctx = c;
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return null;
+                const c = new AudioCtx();
+                this.ctx = c;
 
-            // ── BGM 이펙트 체인 ──
-            // bgmBus → lowpass → dryGain ─→ bgmGain → destination
-            //        → reverb → wetGain  ─↗
+                this.bgmBus = c.createGain();
+                this.bgmBus.gain.value = 1;
 
-            this.bgmBus = c.createGain();
-            this.bgmBus.gain.value = 1;
+                const lpf = c.createBiquadFilter();
+                lpf.type = 'lowpass';
+                lpf.frequency.value = 3800;
 
-            // 로우패스 필터 — 고음 날카로움 제거
-            const lpf = c.createBiquadFilter();
-            lpf.type = 'lowpass';
-            lpf.frequency.value = 3800;
-            lpf.Q.value = 0.5;
+                const dryGain = c.createGain();
+                dryGain.gain.value = 0.7;
 
-            // 하이쉘프 EQ — 고음을 추가로 부드럽게
-            const hiShelf = c.createBiquadFilter();
-            hiShelf.type = 'highshelf';
-            hiShelf.frequency.value = 2500;
-            hiShelf.gain.value = -4;
+                const reverb = this._createReverb(c);
+                const wetGain = c.createGain();
+                wetGain.gain.value = 0.35;
 
-            // 드라이 시그널
-            const dryGain = c.createGain();
-            dryGain.gain.value = 0.7;
+                this.bgmGain = c.createGain();
+                this.bgmGain.gain.value = this.muted ? 0 : 0.55;
 
-            // 리버브 (퍼지한 공간감)
-            const reverb = this._createReverb(c);
-            const wetGain = c.createGain();
-            wetGain.gain.value = 0.35;
+                this.bgmBus.connect(lpf);
+                lpf.connect(dryGain);
+                dryGain.connect(this.bgmGain);
+                this.bgmBus.connect(reverb);
+                reverb.connect(wetGain);
+                wetGain.connect(this.bgmGain);
+                this.bgmGain.connect(c.destination);
 
-            // 마스터 BGM 볼륨
-            this.bgmGain = c.createGain();
-            this.bgmGain.gain.value = this.muted ? 0 : 0.55;
-
-            // 라우팅
-            this.bgmBus.connect(lpf);
-            lpf.connect(hiShelf);
-            hiShelf.connect(dryGain);
-            dryGain.connect(this.bgmGain);
-
-            this.bgmBus.connect(reverb);
-            reverb.connect(wetGain);
-            wetGain.connect(this.bgmGain);
-
-            this.bgmGain.connect(c.destination);
-
-            // ── SFX (이펙트 없이 바로 출력) ──
-            this.sfxGain = c.createGain();
-            this.sfxGain.gain.value = this.muted ? 0 : 1;
-            this.sfxGain.connect(c.destination);
+                this.sfxGain = c.createGain();
+                this.sfxGain.gain.value = this.muted ? 0 : 1;
+                this.sfxGain.connect(c.destination);
+            } catch (e) {
+                console.error('AudioContext creation failed:', e);
+                return null;
+            }
         }
         return this.ctx;
     },
 
-    // 리버브 임펄스 생성 — 따뜻하고 퍼지한 공간
     _createReverb(ctx) {
         const rate = ctx.sampleRate;
-        const len = rate * 2.0;   // 2초 리버브 테일
+        const len = rate * 2.0;
         const impulse = ctx.createBuffer(2, len, rate);
         for (let ch = 0; ch < 2; ch++) {
             const data = impulse.getChannelData(ch);
             for (let i = 0; i < len; i++) {
-                // 지수 감쇠 + 약간의 랜덤 변조
                 const decay = Math.pow(1 - i / len, 2.8);
                 data[i] = (Math.random() * 2 - 1) * decay * 0.5;
             }
@@ -361,36 +363,33 @@ const AudioManager = {
         const ctx = this._getContext();
         this.sfLoaded = await SF.load(ctx);
         this.sfLoading = false;
-        if (this.sfLoaded) console.log('SoundFont loaded ✓');
     },
 
     _ensureBGM() {
         if (this.bgmStarted || this.muted) return;
         const ctx = this._getContext();
-        if (ctx.state === 'running') {
-            this._loadSoundFonts();
-            BGM.start(ctx, this.bgmBus);
-            this.bgmStarted = true;
+        if (ctx && ctx.state === 'running') {
+            this._loadSoundFonts().then(() => {
+                BGM.start(ctx, this.bgmBus);
+                this.bgmStarted = true;
+            });
         }
     },
 
     startBGM() {
         if (this.muted) return;
-        const ctx = this._getContext();
-        if (!this.bgmStarted) {
-            this._loadSoundFonts();
-            BGM.start(ctx, this.bgmBus);
-            this.bgmStarted = true;
-        }
+        this._ensureBGM();
     },
+
     stopBGM() {
         BGM.stop();
         this.bgmStarted = false;
     },
 
-    // ── SFX ──
     play(name) {
         if (this.muted) return;
+        const ctx = this._getContext();
+        if (ctx && ctx.state === 'suspended') ctx.resume();
         this._ensureBGM();
         this._playSynth(name);
     },
@@ -399,6 +398,7 @@ const AudioManager = {
         if (this.muted) return;
         try {
             const ctx = this._getContext();
+            if (!ctx || ctx.state !== 'running') return;
             const now = ctx.currentTime;
             const dest = this.sfxGain;
 
@@ -411,7 +411,6 @@ const AudioManager = {
                 g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
                 o.connect(g); g.connect(dest);
                 o.start(now); o.stop(now + 0.13);
-
             } else if (name === 'merge') {
                 [0, 0.06].forEach((delay, i) => {
                     const o = ctx.createOscillator(), g = ctx.createGain();
@@ -424,7 +423,6 @@ const AudioManager = {
                     o.connect(g); g.connect(dest);
                     o.start(now + delay); o.stop(now + delay + 0.2);
                 });
-
             } else if (name === 'combo') {
                 [523, 659, 784, 1047].forEach((freq, i) => {
                     const o = ctx.createOscillator(), g = ctx.createGain();
@@ -435,7 +433,6 @@ const AudioManager = {
                     o.connect(g); g.connect(dest);
                     o.start(t); o.stop(t + 0.16);
                 });
-
             } else if (name === 'gameover') {
                 [659, 523, 392].forEach((freq, i) => {
                     const o = ctx.createOscillator(), g = ctx.createGain();
@@ -446,12 +443,10 @@ const AudioManager = {
                     o.connect(g); g.connect(dest);
                     o.start(t); o.stop(t + 0.42);
                 });
-                // BGM 계속 재생 (멈추지 않음)
             }
         } catch (e) { }
     },
 
-    // ── Mute ──
     toggleMute() {
         this.muted = !this.muted;
         localStorage.setItem('suika_muted', this.muted);
@@ -466,6 +461,7 @@ const AudioManager = {
             this.startBGM();
         }
     },
+
     _updateMuteButton() {
         const btn = document.getElementById('mute-btn');
         if (btn) btn.textContent = this.muted ? '🔇' : '🔊';

@@ -23,9 +23,7 @@ const UI = {
         this.nextCtx = this.nextCanvas.getContext('2d');
 
         // 고해상도 디스플레이 대응 (모바일은 DPR 상한으로 렌더 비용 절감)
-        const lowPower = navigator.maxTouchPoints > 0 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-        const dprCap = lowPower ? 1.5 : 2;
-        const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
         this.nextDpr = dpr;
         const displayWidth = 80;
         const displayHeight = 80;
@@ -33,7 +31,7 @@ const UI = {
         this.nextCanvas.height = displayHeight * dpr;
         this.nextCtx.scale(dpr, dpr);
         this.nextCtx.imageSmoothingEnabled = true;
-        this.nextCtx.imageSmoothingQuality = lowPower ? 'medium' : 'high';
+        this.nextCtx.imageSmoothingQuality = 'high';
 
         this.evoCanvas = document.getElementById('evolution-canvas');
         if (this.evoCanvas) {

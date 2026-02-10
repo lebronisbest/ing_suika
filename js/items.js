@@ -106,15 +106,15 @@ const ItemManager = {
         const sy = (img.height - imgSize) / 2;
 
         // 고해상도 오프스크린 캔버스 생성
-        const dpr = this.lowPower ? 1 : Math.max(1, this.renderDpr);
+        const dpr = Math.max(1, this.renderDpr);
         const canvas = document.createElement('canvas');
-        const size = Math.max(1, Math.round(targetSize * dpr * 1.4));
+        const size = Math.max(1, Math.round(targetSize * dpr * 2));
         canvas.width = size;
         canvas.height = size;
 
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = this.lowPower ? 'medium' : 'high';
+        ctx.imageSmoothingQuality = 'high';
 
         // 고품질로 이미지 그리기
         ctx.drawImage(img, sx, sy, imgSize, imgSize, 0, 0, size, size);
@@ -135,7 +135,7 @@ const ItemManager = {
 
         const pad = Math.ceil(roundedR * 0.95);
         const logicalSize = Math.ceil(roundedR * 2 + pad * 2);
-        const scale = this.lowPower ? 1 : Math.max(1, this.renderDpr);
+        const scale = Math.max(1, this.renderDpr);
 
         const canvas = document.createElement('canvas');
         canvas.width = Math.max(1, Math.ceil(logicalSize * scale));
@@ -144,7 +144,7 @@ const ItemManager = {
         const sctx = canvas.getContext('2d');
         sctx.scale(scale, scale);
         sctx.imageSmoothingEnabled = true;
-        sctx.imageSmoothingQuality = this.lowPower ? 'medium' : 'high';
+        sctx.imageSmoothingQuality = 'high';
 
         const center = pad + roundedR;
         this._draw3DSphere(sctx, ITEMS[tier], tier, center, center, roundedR);

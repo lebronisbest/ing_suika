@@ -12,15 +12,11 @@ const Effects = {
 
     configure(options = {}) {
         this.lowPower = !!options.lowPower;
-        this.maxParticles = this.lowPower ? 180 : this.MAX_PARTICLES;
+        this.maxParticles = this.MAX_PARTICLES;
     },
 
     setQuality(level) {
-        if (level === 'low') {
-            this.maxParticles = this.lowPower ? 120 : 180;
-            return;
-        }
-        this.maxParticles = this.lowPower ? 180 : this.MAX_PARTICLES;
+        this.maxParticles = this.MAX_PARTICLES;
     },
 
     createMergeEffect(x, y, color, tier) {
@@ -146,7 +142,7 @@ const Effects = {
             const p = this.particles[i];
             ctx.globalAlpha = p.alpha;
 
-            if (p.isStar && !this.lowPower) {
+            if (p.isStar) {
                 // draw a little star/sparkle
                 ctx.save();
                 ctx.fillStyle = p.color;

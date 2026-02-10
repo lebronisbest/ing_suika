@@ -94,7 +94,7 @@ body::after {
 
 /* 꾸꾸: 우측 하단 */
 #kkukku {
-    right: calc(50% - 340px);
+    right: calc(50% - 390px);
     bottom: 30px;
     width: 180px;
     opacity: 0.85;
@@ -103,7 +103,7 @@ body::after {
 
 /* 나나: 좌측 상단 */
 #nana {
-    left: calc(50% - 340px);
+    left: calc(50% - 390px);
     top: 30px;
     width: 180px;
     opacity: 0.85;

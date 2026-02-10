@@ -135,18 +135,10 @@ body::after {
 }
 
 @media (max-width: 900px) {
-    #kkukku {
-        right: -10px;
-        bottom: 10px;
-        width: 120px;
-        opacity: 0.6;
-    }
 
+    #kkukku,
     #nana {
-        left: -10px;
-        top: 60px;
-        width: 120px;
-        opacity: 0.6;
+        display: none;
     }
 }
 
@@ -155,8 +147,7 @@ body::after {
 
     #kkukku,
     #nana {
-        width: 100px;
-        /* Shrink mascots on short screens */
+        display: none;
     }
 }
 
@@ -712,73 +703,483 @@ body::after {
     }
 }
 
-/* ===== Responsive ===== */
+/* ===== Responsive: Mobile Optimization ===== */
+
+/* 태블릿 & 작은 데스크톱 (421px ~ 900px) */
+@media (max-width: 900px) and (min-width: 421px) {
+    #game-wrapper {
+        max-width: 400px;
+    }
+
+    #game-outer {
+        margin-top: 15px;
+    }
+}
+
+/* 모바일 (max-width: 420px) */
 @media (max-width: 420px) {
+
+    /* 전체 레이아웃 */
+    body {
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    #game-outer {
+        margin-top: 10px;
+    }
+
     #game-wrapper {
         width: 100%;
         max-width: 100%;
+        padding: 0 8px 16px 8px;
     }
 
-    .panel-body {
-        width: 75px !important;
-        height: 75px !important;
-    }
-
-    #score-panel .panel-body {
-        width: 85px !important;
-        height: 85px !important;
+    /* 상단 패널들 */
+    #top-bar {
+        padding: 0 2px;
+        margin-bottom: -6px;
     }
 
     .panel-label {
-        font-size: 12px;
+        font-size: 11px;
+        letter-spacing: 0.8px;
+    }
+
+    .panel-body {
+        width: 70px !important;
+        height: 70px !important;
+    }
+
+    #score-panel .panel-body {
+        width: 80px !important;
+        height: 80px !important;
+    }
+
+    #best-panel .panel-body {
+        width: 65px !important;
+        height: 65px !important;
     }
 
     #score {
-        font-size: 24px;
+        font-size: 22px;
     }
 
     #best-score {
-        font-size: 13px;
+        font-size: 12px;
+    }
+
+    #best-label-sub {
+        font-size: 7px;
     }
 
     #next-canvas {
-        width: 45px;
-        height: 45px;
+        width: 42px;
+        height: 42px;
     }
 
+    /* 게임 박스 */
     #box-frame {
-        border-radius: 0;
-        padding: 0 4px 12px 4px;
-        /* Slightly reduced side padding */
+        border-radius: 0 0 12px 12px;
+        padding: 0 6px 10px 6px;
     }
 
     #game-canvas {
         border-radius: 0 0 8px 8px;
     }
 
+    /* 게임 오버 오버레이 */
     #game-over-overlay {
-        border-radius: 0;
+        border-radius: 0 0 12px 12px;
     }
 
-    /* Make buttons easier to tap */
+    #game-over-box {
+        padding: 18px 22px;
+        max-height: 88vh;
+        max-width: 92vw;
+        border-radius: 18px;
+    }
+
+    #game-over-icon {
+        font-size: 30px;
+        margin-bottom: 6px;
+    }
+
+    #game-over-box h2 {
+        font-size: 19px;
+        margin-bottom: 12px;
+        letter-spacing: 1.8px;
+    }
+
+    #final-score-wrap {
+        padding: 7px 20px;
+        margin-bottom: 10px;
+        border-radius: 12px;
+    }
+
+    #final-score-label {
+        font-size: 9px;
+        letter-spacing: 1.8px;
+    }
+
+    #final-score {
+        font-size: 30px;
+    }
+
+    #new-best {
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+
+    /* 이름 입력 */
+    #name-entry {
+        margin: 12px 0;
+    }
+
+    .entry-label {
+        font-size: 10px;
+        margin-bottom: 8px;
+        letter-spacing: 0.8px;
+    }
+
+    #name-inputs {
+        gap: 7px;
+        margin-bottom: 10px;
+    }
+
+    .name-char {
+        width: 38px;
+        height: 44px;
+        font-size: 22px;
+        border: 2.5px solid #AED6F1;
+        border-radius: 9px;
+    }
+
+    #submit-score-btn {
+        padding: 8px 26px;
+        font-size: 13px;
+        border-radius: 18px;
+    }
+
+    #submit-error {
+        font-size: 11px;
+        margin-top: 7px;
+    }
+
+    /* 랭킹 결과 */
+    #ranking-result {
+        margin: 12px 0;
+    }
+
+    #percentile-badge {
+        padding: 10px 0;
+        margin-bottom: 12px;
+    }
+
+    .pct-num {
+        font-size: 28px;
+    }
+
+    .pct-label {
+        font-size: 10px;
+        letter-spacing: 1.8px;
+    }
+
+    .rank-title {
+        font-size: 9px;
+        letter-spacing: 1.8px;
+        margin-bottom: 6px;
+    }
+
+    .rank-row {
+        padding: 4px 8px;
+        font-size: 12px;
+        border-radius: 7px;
+    }
+
+    .rank-pos {
+        width: 26px;
+    }
+
+    .rank-name {
+        letter-spacing: 1.5px;
+    }
+
+    .rank-score {
+        font-size: 12px;
+    }
+
+    /* 버튼 */
     #restart-btn {
-        padding: 14px 40px;
+        padding: 12px 38px;
+        font-size: 16px;
+        margin-top: 8px;
+        border-radius: 26px;
+    }
+
+    /* 뮤트 버튼 */
+    #mute-btn {
+        bottom: 14px;
+        right: 14px;
+        width: 42px;
+        height: 42px;
+        font-size: 14px;
+    }
+
+    /* 콤보 텍스트 */
+    .combo-text {
+        font-size: 19px;
     }
 }
 
-/* Very small screens */
+/* 소형 모바일 (max-width: 360px) */
 @media (max-width: 360px) {
+    #game-wrapper {
+        padding: 0 4px 12px 4px;
+    }
+
+    /* 패널 더 축소 */
     .panel-body {
-        width: 65px !important;
-        height: 65px !important;
+        width: 62px !important;
+        height: 62px !important;
     }
 
     #score-panel .panel-body {
-        width: 75px !important;
-        height: 75px !important;
+        width: 72px !important;
+        height: 72px !important;
+    }
+
+    #best-panel .panel-body {
+        width: 58px !important;
+        height: 58px !important;
+    }
+
+    .panel-label {
+        font-size: 10px;
     }
 
     #score {
+        font-size: 19px;
+    }
+
+    #best-score {
+        font-size: 11px;
+    }
+
+    #next-canvas {
+        width: 38px;
+        height: 38px;
+    }
+
+    /* 게임 오버 박스 */
+    #game-over-box {
+        padding: 15px 18px;
+        border-radius: 16px;
+    }
+
+    #game-over-icon {
+        font-size: 26px;
+    }
+
+    #game-over-box h2 {
+        font-size: 17px;
+        letter-spacing: 1.5px;
+    }
+
+    #final-score-wrap {
+        padding: 6px 16px;
+    }
+
+    #final-score {
+        font-size: 26px;
+    }
+
+    .name-char {
+        width: 34px;
+        height: 40px;
         font-size: 20px;
+    }
+
+    #submit-score-btn {
+        padding: 7px 22px;
+        font-size: 12px;
+    }
+
+    #restart-btn {
+        padding: 11px 34px;
+        font-size: 15px;
+    }
+
+    .pct-num {
+        font-size: 25px;
+    }
+
+    .rank-row {
+        font-size: 11px;
+        padding: 3px 6px;
+    }
+
+    .combo-text {
+        font-size: 17px;
+    }
+}
+
+/* 가로 모드 최적화 (높이가 낮을 때) */
+@media (max-height: 650px) and (orientation: landscape) {
+    #game-outer {
+        margin-top: 8px;
+    }
+
+    #game-wrapper {
+        padding-bottom: 12px;
+    }
+
+    #game-over-box {
+        padding: 14px 26px;
+        max-height: 94vh;
+    }
+
+    #game-over-icon {
+        font-size: 26px;
+        margin-bottom: 4px;
+    }
+
+    #game-over-box h2 {
+        font-size: 17px;
+        margin-bottom: 8px;
+    }
+
+    #final-score-wrap {
+        padding: 5px 18px;
+        margin-bottom: 8px;
+    }
+
+    #final-score {
+        font-size: 26px;
+    }
+
+    #name-entry,
+    #ranking-result {
+        margin: 8px 0;
+    }
+
+    .entry-label {
+        font-size: 9px;
+        margin-bottom: 6px;
+    }
+
+    #name-inputs {
+        margin-bottom: 8px;
+    }
+
+    .name-char {
+        width: 34px;
+        height: 38px;
+        font-size: 20px;
+    }
+
+    #submit-score-btn,
+    #restart-btn {
+        padding: 7px 26px;
+        font-size: 13px;
+    }
+
+    #percentile-badge {
+        padding: 6px 0;
+        margin-bottom: 8px;
+    }
+
+    .rank-row {
+        padding: 2px 6px;
+        font-size: 11px;
+    }
+
+    #mute-btn {
+        bottom: 10px;
+        right: 10px;
+        width: 38px;
+        height: 38px;
+    }
+}
+
+/* 매우 작은 가로 모드 */
+@media (max-height: 500px) and (orientation: landscape) {
+    #game-over-box {
+        padding: 10px 20px;
+        max-height: 96vh;
+    }
+
+    #game-over-icon {
+        font-size: 22px;
+        margin-bottom: 2px;
+    }
+
+    #game-over-box h2 {
+        font-size: 15px;
+        margin-bottom: 6px;
+    }
+
+    #final-score-wrap {
+        padding: 4px 14px;
+        margin-bottom: 6px;
+    }
+
+    #final-score-label {
+        font-size: 8px;
+    }
+
+    #final-score {
+        font-size: 22px;
+    }
+
+    #new-best {
+        font-size: 12px;
+        margin-bottom: 4px;
+    }
+
+    #name-entry,
+    #ranking-result {
+        margin: 6px 0;
+    }
+
+    .entry-label {
+        font-size: 8px;
+        margin-bottom: 4px;
+    }
+
+    #name-inputs {
+        gap: 5px;
+        margin-bottom: 6px;
+    }
+
+    .name-char {
+        width: 30px;
+        height: 34px;
+        font-size: 18px;
+    }
+
+    #submit-score-btn,
+    #restart-btn {
+        padding: 5px 22px;
+        font-size: 12px;
+    }
+
+    #percentile-badge {
+        padding: 4px 0;
+        margin-bottom: 6px;
+    }
+
+    .pct-num {
+        font-size: 22px;
+    }
+
+    .rank-title {
+        font-size: 8px;
+        margin-bottom: 4px;
+    }
+
+    .rank-row {
+        padding: 2px 5px;
+        font-size: 10px;
     }
 }

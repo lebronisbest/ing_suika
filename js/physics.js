@@ -144,5 +144,16 @@ const Physics = {
         }
         this.engine = null;
         this.world = null;
+    },
+
+    freeze() {
+        // 모든 물체를 즉시 정지
+        for (const body of this.bodies) {
+            if (body.label === 'item') {
+                Matter.Body.setVelocity(body, { x: 0, y: 0 });
+                Matter.Body.setAngularVelocity(body, 0);
+                Matter.Body.setStatic(body, true);
+            }
+        }
     }
 };

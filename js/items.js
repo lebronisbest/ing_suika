@@ -1,15 +1,15 @@
 const ITEMS = [
-    { tier: 0,  radius: 17,  score: 1,   color: '#FF6B9D', accent: '#E8557F', highlight: '#FFB3CF', name: 'item_0'  },
-    { tier: 1,  radius: 25,  score: 3,   color: '#FF8A80', accent: '#E57373', highlight: '#FFCDD2', name: 'item_1'  },
-    { tier: 2,  radius: 32,  score: 6,   color: '#B39DDB', accent: '#9575CD', highlight: '#D1C4E9', name: 'item_2'  },
-    { tier: 3,  radius: 38,  score: 10,  color: '#FFB74D', accent: '#FFA726', highlight: '#FFE0B2', name: 'item_3'  },
-    { tier: 4,  radius: 45,  score: 15,  color: '#FF8A65', accent: '#FF7043', highlight: '#FFCCBC', name: 'item_4'  },
-    { tier: 5,  radius: 52,  score: 21,  color: '#EF5350', accent: '#E53935', highlight: '#FFCDD2', name: 'item_5'  },
-    { tier: 6,  radius: 60,  score: 28,  color: '#AED581', accent: '#8BC34A', highlight: '#DCEDC8', name: 'item_6'  },
-    { tier: 7,  radius: 69,  score: 36,  color: '#F48FB1', accent: '#EC407A', highlight: '#F8BBD0', name: 'item_7'  },
-    { tier: 8,  radius: 78,  score: 45,  color: '#FFD54F', accent: '#FFC107', highlight: '#FFF9C4', name: 'item_8'  },
-    { tier: 9,  radius: 89,  score: 55,  color: '#4DB6AC', accent: '#26A69A', highlight: '#B2DFDB', name: 'item_9'  },
-    { tier: 10, radius: 100, score: 66,  color: '#42A5F5', accent: '#1E88E5', highlight: '#BBDEFB', name: 'item_10' },
+    { tier: 0, radius: 17, score: 1, color: '#FF6B9D', accent: '#E8557F', highlight: '#FFB3CF', name: 'item_0' },
+    { tier: 1, radius: 25, score: 3, color: '#FF8A80', accent: '#E57373', highlight: '#FFCDD2', name: 'item_1' },
+    { tier: 2, radius: 32, score: 6, color: '#B39DDB', accent: '#9575CD', highlight: '#D1C4E9', name: 'item_2' },
+    { tier: 3, radius: 38, score: 10, color: '#FFB74D', accent: '#FFA726', highlight: '#FFE0B2', name: 'item_3' },
+    { tier: 4, radius: 45, score: 15, color: '#FF8A65', accent: '#FF7043', highlight: '#FFCCBC', name: 'item_4' },
+    { tier: 5, radius: 52, score: 21, color: '#EF5350', accent: '#E53935', highlight: '#FFCDD2', name: 'item_5' },
+    { tier: 6, radius: 60, score: 28, color: '#AED581', accent: '#8BC34A', highlight: '#DCEDC8', name: 'item_6' },
+    { tier: 7, radius: 69, score: 36, color: '#F48FB1', accent: '#EC407A', highlight: '#F8BBD0', name: 'item_7' },
+    { tier: 8, radius: 78, score: 45, color: '#FFD54F', accent: '#FFC107', highlight: '#FFF9C4', name: 'item_8' },
+    { tier: 9, radius: 89, score: 55, color: '#4DB6AC', accent: '#26A69A', highlight: '#B2DFDB', name: 'item_9' },
+    { tier: 10, radius: 100, score: 66, color: '#42A5F5', accent: '#1E88E5', highlight: '#BBDEFB', name: 'item_10' },
 ];
 
 const MAX_DROP_TIER = 4;
@@ -17,6 +17,7 @@ const MAX_DROP_TIER = 4;
 const ItemManager = {
     images: {},
     loaded: false,
+    processedImages: {}, // 고품질 처리된 이미지 캐시
 
     preload() {
         return new Promise((resolve) => {
@@ -76,6 +77,42 @@ const ItemManager = {
         return 0;
     },
 
+    // 고품질 이미지 전처리 (다운샘플링)
+    _getProcessedImage(tier, targetSize) {
+        const cacheKey = `${tier}_${targetSize}`;
+
+        // 캐시된 이미지가 있으면 반환
+        if (this.processedImages[cacheKey]) {
+            return this.processedImages[cacheKey];
+        }
+
+        const img = this.images[tier];
+        if (!img) return null;
+
+        // 원본 이미지에서 정사각형 영역 추출
+        const imgSize = Math.min(img.width, img.height);
+        const sx = (img.width - imgSize) / 2;
+        const sy = (img.height - imgSize) / 2;
+
+        // 고해상도 오프스크린 캔버스 생성
+        const dpr = window.devicePixelRatio || 1;
+        const canvas = document.createElement('canvas');
+        const size = targetSize * dpr * 2; // 2배 크기로 생성하여 품질 향상
+        canvas.width = size;
+        canvas.height = size;
+
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        // 고품질로 이미지 그리기
+        ctx.drawImage(img, sx, sy, imgSize, imgSize, 0, 0, size, size);
+
+        // 캐시에 저장
+        this.processedImages[cacheKey] = canvas;
+        return canvas;
+    },
+
     drawItem(ctx, tier, x, y, radius, alpha) {
         const item = ITEMS[tier];
         if (!item) return;
@@ -129,11 +166,19 @@ const ItemManager = {
         ctx.closePath();
         ctx.clip();
 
-        const imgSize = Math.min(img.width, img.height);
-        const sx = (img.width - imgSize) / 2;
-        const sy = (img.height - imgSize) / 2;
-        ctx.drawImage(img, sx, sy, imgSize, imgSize,
-                      x - innerR, y - innerR, innerR * 2, innerR * 2);
+        // 고품질 전처리된 이미지 사용
+        const processedImg = this._getProcessedImage(tier, innerR * 2);
+        if (processedImg) {
+            ctx.drawImage(processedImg, x - innerR, y - innerR, innerR * 2, innerR * 2);
+        } else {
+            // 폴백: 원본 이미지 사용
+            const imgSize = Math.min(img.width, img.height);
+            const sx = (img.width - imgSize) / 2;
+            const sy = (img.height - imgSize) / 2;
+            ctx.drawImage(img, sx, sy, imgSize, imgSize,
+                x - innerR, y - innerR, innerR * 2, innerR * 2);
+        }
+
 
         // ▸ 구면 음영 — Ambient Occlusion (가장자리 어둡게)
         const aoGrad = ctx.createRadialGradient(x, y, innerR * 0.4, x, y, innerR);

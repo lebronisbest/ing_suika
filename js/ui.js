@@ -20,6 +20,17 @@ const UI = {
         this.gameOverOverlay = document.getElementById('game-over-overlay');
         this.nextCanvas = document.getElementById('next-canvas');
         this.nextCtx = this.nextCanvas.getContext('2d');
+
+        // 고해상도 디스플레이 대응
+        const dpr = window.devicePixelRatio || 1;
+        const displayWidth = 80;
+        const displayHeight = 80;
+        this.nextCanvas.width = displayWidth * dpr;
+        this.nextCanvas.height = displayHeight * dpr;
+        this.nextCtx.scale(dpr, dpr);
+        this.nextCtx.imageSmoothingEnabled = true;
+        this.nextCtx.imageSmoothingQuality = 'high';
+
         this.evoCanvas = document.getElementById('evolution-canvas');
         if (this.evoCanvas) {
             this.evoCtx = this.evoCanvas.getContext('2d');
@@ -55,14 +66,18 @@ const UI = {
     drawNextItem(tier) {
         const ctx = this.nextCtx;
         const canvas = this.nextCanvas;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const dpr = window.devicePixelRatio || 1;
+
+        // DPR을 고려한 클리어
+        ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
         const item = ITEMS[tier];
         const maxR = 28;
         const scale = Math.min(maxR, item.radius) / item.radius;
         const drawRadius = item.radius * scale;
 
-        ItemManager.drawItem(ctx, tier, canvas.width / 2, canvas.height / 2, drawRadius, 1);
+        // DPR을 고려한 중심점 계산
+        ItemManager.drawItem(ctx, tier, (canvas.width / dpr) / 2, (canvas.height / dpr) / 2, drawRadius, 1);
     },
 
     // ── Evolution Canvas: Now unused ──

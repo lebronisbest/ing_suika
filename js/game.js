@@ -16,9 +16,20 @@ const Game = {
 
     async init() {
         this.canvas = document.getElementById('game-canvas');
-        this.canvas.width = Physics.CANVAS_WIDTH;
-        this.canvas.height = Physics.CANVAS_HEIGHT;
+
+        // 고해상도 디스플레이 대응 (Retina, 4K 등)
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = Physics.CANVAS_WIDTH * dpr;
+        this.canvas.height = Physics.CANVAS_HEIGHT * dpr;
+
         this.ctx = this.canvas.getContext('2d');
+
+        // 캔버스 스케일링으로 고해상도 렌더링
+        this.ctx.scale(dpr, dpr);
+
+        // 이미지 렌더링 품질 향상
+        this.ctx.imageSmoothingEnabled = true;
+        this.ctx.imageSmoothingQuality = 'high';
 
         await ItemManager.preload();
 
@@ -212,6 +223,10 @@ const Game = {
         if (Physics.isAboveDeadline()) {
             this.state = 'gameover';
             this.canDrop = false;
+
+            // 물리 엔진 즉시 정지
+            Physics.freeze();
+
             if (this.comboTimer) {
                 clearTimeout(this.comboTimer);
                 this.comboTimer = null;

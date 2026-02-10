@@ -2,7 +2,10 @@ const Physics = {
     engine: null,
     world: null,
     bodies: [],
+    bodyIndex: new Map(),
     _deadlineSince: new Map(),
+    _aliveIdsScratch: new Set(),
+    _staleDeadlineIds: [],
     lowPower: false,
 
     CANVAS_WIDTH: 390,
@@ -26,7 +29,10 @@ const Physics = {
         });
         this.world = this.engine.world;
         this.bodies = [];
+        this.bodyIndex.clear();
         this._deadlineSince.clear();
+        this._aliveIdsScratch.clear();
+        this._staleDeadlineIds.length = 0;
         this._createWalls();
     },
 
@@ -64,18 +70,31 @@ const Physics = {
             label: 'item',
             tier: tier,
             isMerging: false,
-            dropTime: Date.now(),
+            dropTime: performance.now(),
         });
 
         Matter.Composite.add(this.world, body);
+        const idx = this.bodies.length;
         this.bodies.push(body);
+        this.bodyIndex.set(body.id, idx);
         return body;
     },
 
     removeBody(body) {
         Matter.Composite.remove(this.world, body);
-        const idx = this.bodies.indexOf(body);
-        if (idx > -1) this.bodies.splice(idx, 1);
+        const idx = this.bodyIndex.get(body.id);
+        if (idx !== undefined) {
+            const lastIdx = this.bodies.length - 1;
+            const lastBody = this.bodies[lastIdx];
+
+            if (idx !== lastIdx) {
+                this.bodies[idx] = lastBody;
+                this.bodyIndex.set(lastBody.id, idx);
+            }
+
+            this.bodies.pop();
+            this.bodyIndex.delete(body.id);
+        }
         this._deadlineSince.delete(body.id);
     },
 
@@ -86,17 +105,22 @@ const Physics = {
     onCollision(callback) {
         Matter.Events.on(this.engine, 'collisionStart', (event) => {
             for (const pair of event.pairs) {
-                callback(pair.bodyA, pair.bodyB);
+                const bodyA = pair.bodyA;
+                const bodyB = pair.bodyB;
+                if (bodyA.label !== 'item' || bodyB.label !== 'item') continue;
+                callback(bodyA, bodyB);
             }
         });
     },
 
-    isAboveDeadline() {
-        const now = Date.now();
-        const aliveIds = new Set();
+    isAboveDeadline(now) {
+        const current = Number.isFinite(now) ? now : performance.now();
+        const aliveIds = this._aliveIdsScratch;
+        const staleIds = this._staleDeadlineIds;
+        aliveIds.clear();
+        staleIds.length = 0;
 
         for (const body of this.bodies) {
-            if (body.label !== 'item') continue;
             aliveIds.add(body.id);
 
             if (body.isMerging) {
@@ -104,7 +128,7 @@ const Physics = {
                 continue;
             }
 
-            if (now - body.dropTime < this.DEADLINE_GRACE_MS) {
+            if (current - body.dropTime < this.DEADLINE_GRACE_MS) {
                 this._deadlineSince.delete(body.id);
                 continue;
             }
@@ -126,16 +150,19 @@ const Physics = {
                 continue;
             }
 
-            const startedAt = this._deadlineSince.get(body.id) || now;
+            const startedAt = this._deadlineSince.get(body.id) || current;
             this._deadlineSince.set(body.id, startedAt);
 
-            if (now - startedAt >= this.DEADLINE_HOLD_MS) {
+            if (current - startedAt >= this.DEADLINE_HOLD_MS) {
                 return true;
             }
         }
 
-        for (const id of Array.from(this._deadlineSince.keys())) {
-            if (!aliveIds.has(id)) this._deadlineSince.delete(id);
+        for (const id of this._deadlineSince.keys()) {
+            if (!aliveIds.has(id)) staleIds.push(id);
+        }
+        for (let i = 0; i < staleIds.length; i++) {
+            this._deadlineSince.delete(staleIds[i]);
         }
 
         return false;
@@ -146,7 +173,10 @@ const Physics = {
             Matter.Composite.clear(this.world, false);
         }
         this.bodies = [];
+        this.bodyIndex.clear();
         this._deadlineSince.clear();
+        this._aliveIdsScratch.clear();
+        this._staleDeadlineIds.length = 0;
         if (this.engine) {
             Matter.Engine.clear(this.engine);
             Matter.Events.off(this.engine);

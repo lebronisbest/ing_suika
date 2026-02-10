@@ -17,16 +17,16 @@ const MAX_DROP_TIER = 4;
 const ItemManager = {
     images: {},
     loaded: false,
-    spriteCache: {},
+    spriteCache: Object.create(null),
     renderDpr: 1,
     lowPower: false,
-    processedImages: {}, // 고품질 처리된 이미지 캐시
+    processedImages: Object.create(null), // 고품질 처리된 이미지 캐시
 
     configureRender(options = {}) {
         this.renderDpr = Math.max(1, Number(options.dpr) || 1);
         this.lowPower = !!options.lowPower;
-        this.processedImages = {};
-        this.spriteCache = {};
+        this.processedImages = Object.create(null);
+        this.spriteCache = Object.create(null);
     },
 
     preload() {
@@ -172,8 +172,12 @@ const ItemManager = {
         const item = ITEMS[tier];
         if (!item) return;
 
-        ctx.save();
-        ctx.globalAlpha = alpha !== undefined ? alpha : 1;
+        const drawAlpha = alpha === undefined ? 1 : alpha;
+        const needsAlphaScope = drawAlpha !== 1;
+        if (needsAlphaScope) {
+            ctx.save();
+            ctx.globalAlpha = drawAlpha;
+        }
 
         if (this.images[tier]) {
             if (!this._drawCachedSprite(ctx, tier, x, y, radius)) {
@@ -183,7 +187,9 @@ const ItemManager = {
             this._drawFallback(ctx, item, tier, x, y, radius);
         }
 
-        ctx.restore();
+        if (needsAlphaScope) {
+            ctx.restore();
+        }
     },
 
     // ══════════════════════════════════════

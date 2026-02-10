@@ -12,6 +12,8 @@ const Game = {
     perfFrameCount: 0,
     perfFrameMsEma: 16.7,
     perfWindowStart: 0,
+    renderEveryNFrames: 1,
+    qualityLevel: 'normal',
     state: 'loading',
     score: 0,
     combo: 0,
@@ -35,7 +37,7 @@ const Game = {
         this.canvas.width = Math.floor(Physics.CANVAS_WIDTH * this.renderDpr);
         this.canvas.height = Math.floor(Physics.CANVAS_HEIGHT * this.renderDpr);
 
-        this.ctx = this.canvas.getContext('2d');
+        this.ctx = this.canvas.getContext('2d', { alpha: false, desynchronized: true }) || this.canvas.getContext('2d');
         this.ctx.scale(this.renderDpr, this.renderDpr);
         this.ctx.imageSmoothingEnabled = true;
         this.ctx.imageSmoothingQuality = this.lowPowerMode ? 'medium' : 'high';
@@ -61,10 +63,16 @@ const Game = {
     start() {
         Physics.configure({ lowPower: this.lowPowerMode });
         Physics.init();
+        Effects.configure({ lowPower: this.lowPowerMode });
+        Effects.setQuality('normal');
         Effects.clear();
         this.frameCount = 0;
         this.perfWindowStart = 0;
         this.perfFrameCount = 0;
+        this.perfLastTs = 0;
+        this.perfFrameMsEma = 16.7;
+        this.renderEveryNFrames = 1;
+        this.qualityLevel = 'normal';
         this.score = 0;
         this.combo = 0;
         this.canDrop = true;
@@ -270,10 +278,10 @@ const Game = {
         }, 1200);
     },
 
-    _checkGameOver() {
+    _checkGameOver(now) {
         if (this.state !== 'playing') return;
 
-        if (Physics.isAboveDeadline()) {
+        if (Physics.isAboveDeadline(now)) {
             this.state = 'gameover';
             this.canDrop = false;
 
@@ -303,11 +311,15 @@ const Game = {
         Physics.update();
         Effects.update();
 
+        this._updateAdaptiveQuality();
+
         if (this.state === 'playing' && this.frameCount % this.gameOverCheckEvery === 0) {
-            this._checkGameOver();
+            this._checkGameOver(now);
         }
 
-        this._render();
+        if (this.frameCount % this.renderEveryNFrames === 0) {
+            this._render();
+        }
         this._updatePerfOverlay(now);
 
         this.animFrame = requestAnimationFrame(() => this._gameLoop());
@@ -342,8 +354,9 @@ const Game = {
             ItemManager.drawItem(ctx, this.currentTier, this.dropX, 40, ITEMS[this.currentTier].radius, 0.65);
         }
 
-        for (const body of Physics.bodies) {
-            if (body.label !== 'item') continue;
+        const bodies = Physics.bodies;
+        for (let i = 0; i < bodies.length; i++) {
+            const body = bodies[i];
             const tier = body.tier;
             const item = ITEMS[tier];
             if (!item) continue;
@@ -358,6 +371,23 @@ const Game = {
         Effects.draw(ctx);
 
         ctx.restore();
+    },
+
+    _updateAdaptiveQuality() {
+        if (!this.lowPowerMode) return;
+
+        if (this.qualityLevel === 'normal' && this.perfFrameMsEma > 21.5) {
+            this.renderEveryNFrames = 2;
+            this.qualityLevel = 'low';
+            Effects.setQuality('low');
+            return;
+        }
+
+        if (this.qualityLevel === 'low' && this.perfFrameMsEma < 17.5) {
+            this.renderEveryNFrames = 1;
+            this.qualityLevel = 'normal';
+            Effects.setQuality('normal');
+        }
     },
 
     _detectLowPowerMode() {
@@ -416,7 +446,7 @@ const Game = {
         if (elapsed < 400) return;
 
         const fps = (this.perfFrameCount * 1000) / elapsed;
-        this.perfNode.textContent = `fps:${fps.toFixed(1)} ms:${this.perfFrameMsEma.toFixed(1)} bodies:${Physics.bodies.length} fx:${Effects.particles.length}`;
+        this.perfNode.textContent = `fps:${fps.toFixed(1)} ms:${this.perfFrameMsEma.toFixed(1)} bodies:${Physics.bodies.length} fx:${Effects.particles.length} q:${this.qualityLevel} r:${this.renderEveryNFrames}`;
         this.perfWindowStart = now;
         this.perfFrameCount = 0;
     },

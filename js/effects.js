@@ -2,12 +2,30 @@ const Effects = {
     particles: [],
     comboTexts: [],
     MAX_PARTICLES: 260,
+    maxParticles: 260,
+    lowPower: false,
+    maxComboTexts: 3,
+    _shakeOffset: { x: 0, y: 0 },
+    maxMergeColors: ['#7EC8E3', '#AED6F1', '#FFD700', '#fff', '#42A5F5'],
     shakeAmount: 0,
     shakeDuration: 0,
 
+    configure(options = {}) {
+        this.lowPower = !!options.lowPower;
+        this.maxParticles = this.lowPower ? 180 : this.MAX_PARTICLES;
+    },
+
+    setQuality(level) {
+        if (level === 'low') {
+            this.maxParticles = this.lowPower ? 120 : 180;
+            return;
+        }
+        this.maxParticles = this.lowPower ? 180 : this.MAX_PARTICLES;
+    },
+
     createMergeEffect(x, y, color, tier) {
         const count = 8 + tier * 2;
-        const slots = Math.max(0, this.MAX_PARTICLES - this.particles.length);
+        const slots = Math.max(0, this.maxParticles - this.particles.length);
         const spawnCount = Math.min(count, slots);
         for (let i = 0; i < spawnCount; i++) {
             const angle = (Math.PI * 2 / count) * i + Math.random() * 0.5;
@@ -27,7 +45,7 @@ const Effects = {
         // sparkle stars for bigger merges
         if (tier >= 4) {
             const starCount = 3 + tier;
-            const starSlots = Math.max(0, this.MAX_PARTICLES - this.particles.length);
+            const starSlots = Math.max(0, this.maxParticles - this.particles.length);
             const starSpawn = Math.min(starCount, starSlots);
             for (let i = 0; i < starSpawn; i++) {
                 const angle = Math.random() * Math.PI * 2;
@@ -50,20 +68,19 @@ const Effects = {
     createMaxMergeEffect(x, y) {
         for (let ring = 0; ring < 3; ring++) {
             const count = 16 + ring * 8;
-            const slots = Math.max(0, this.MAX_PARTICLES - this.particles.length);
+            const slots = Math.max(0, this.maxParticles - this.particles.length);
             if (slots <= 0) break;
             const spawnCount = Math.min(count, slots);
             for (let i = 0; i < spawnCount; i++) {
                 const angle = (Math.PI * 2 / count) * i;
                 const speed = 3 + ring * 2 + Math.random() * 3;
-                const colors = ['#7EC8E3', '#AED6F1', '#FFD700', '#fff', '#42A5F5'];
                 this.particles.push({
                     x,
                     y,
                     vx: Math.cos(angle) * speed,
                     vy: Math.sin(angle) * speed,
                     radius: 3 + Math.random() * 5,
-                    color: colors[Math.floor(Math.random() * colors.length)],
+                    color: this.maxMergeColors[Math.floor(Math.random() * this.maxMergeColors.length)],
                     alpha: 1,
                     decay: 0.01 + Math.random() * 0.01,
                 });
@@ -73,6 +90,14 @@ const Effects = {
     },
 
     showCombo(x, y, combo, container) {
+        if (this.comboTexts.length >= this.maxComboTexts) {
+            const oldest = this.comboTexts.shift();
+            if (oldest) {
+                clearTimeout(oldest.id);
+                if (oldest.el) oldest.el.remove();
+            }
+        }
+
         const el = document.createElement('div');
         el.className = 'combo-text';
         el.textContent = `${combo} COMBO!`;
@@ -80,7 +105,11 @@ const Effects = {
         el.style.top = `${y}px`;
         container.appendChild(el);
 
-        setTimeout(() => el.remove(), 1000);
+        const timeoutId = setTimeout(() => {
+            el.remove();
+            this.comboTexts = this.comboTexts.filter((entry) => entry.id !== timeoutId);
+        }, 1000);
+        this.comboTexts.push({ el, id: timeoutId });
     },
 
     shake(amount, duration) {
@@ -113,10 +142,11 @@ const Effects = {
     },
 
     draw(ctx) {
-        for (const p of this.particles) {
+        for (let i = 0; i < this.particles.length; i++) {
+            const p = this.particles[i];
             ctx.globalAlpha = p.alpha;
 
-            if (p.isStar) {
+            if (p.isStar && !this.lowPower) {
                 // draw a little star/sparkle
                 ctx.save();
                 ctx.fillStyle = p.color;
@@ -150,16 +180,24 @@ const Effects = {
     },
 
     getShakeOffset() {
-        if (this.shakeAmount <= 0) return { x: 0, y: 0 };
+        if (this.shakeAmount <= 0) {
+            this._shakeOffset.x = 0;
+            this._shakeOffset.y = 0;
+            return this._shakeOffset;
+        }
         const decay = this.shakeDuration / 30;
-        return {
-            x: (Math.random() - 0.5) * this.shakeAmount * decay,
-            y: (Math.random() - 0.5) * this.shakeAmount * decay,
-        };
+        this._shakeOffset.x = (Math.random() - 0.5) * this.shakeAmount * decay;
+        this._shakeOffset.y = (Math.random() - 0.5) * this.shakeAmount * decay;
+        return this._shakeOffset;
     },
 
     clear() {
         this.particles = [];
+        for (let i = 0; i < this.comboTexts.length; i++) {
+            clearTimeout(this.comboTexts[i].id);
+            if (this.comboTexts[i].el) this.comboTexts[i].el.remove();
+        }
+        this.comboTexts = [];
         this.shakeAmount = 0;
         this.shakeDuration = 0;
     }

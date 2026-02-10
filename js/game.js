@@ -73,24 +73,30 @@ const Game = {
     },
 
     _bindInput() {
-        let isPointerDown = false;
+        const getClientX = (e) => {
+            if (typeof e.clientX === 'number') return e.clientX;
+
+            const touch =
+                (e.targetTouches && e.targetTouches.length > 0 && e.targetTouches[0]) ||
+                (e.touches && e.touches.length > 0 && e.touches[0]) ||
+                (e.changedTouches && e.changedTouches.length > 0 && e.changedTouches[0]);
+            return touch ? touch.clientX : null;
+        };
 
         const getX = (e) => {
+            const clientX = getClientX(e);
+            if (clientX == null) return this.dropX;
+
             const rect = this.canvas.getBoundingClientRect();
-            // 터치/마우스 좌표 추출
-            const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX :
-                (e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0].clientX : e.clientX);
-
-            // 캔버스 내에서의 비율 (0.0 ~ 1.0)
             const ratio = (clientX - rect.left) / rect.width;
-
-            // 게임 논리 좌표계(390px)로 변환
-            return ratio * Physics.CANVAS_WIDTH;
+            const clamped = Math.max(0, Math.min(1, ratio));
+            return clamped * Physics.CANVAS_WIDTH;
         };
 
         const onMove = (e) => {
             if (this.state !== 'playing') return;
-            e.preventDefault();
+            if (e.cancelable) e.preventDefault();
+
             const x = getX(e);
             const r = ITEMS[this.currentTier].radius;
             this.dropX = Math.max(r + 2, Math.min(Physics.CANVAS_WIDTH - r - 2, x));
@@ -98,29 +104,32 @@ const Game = {
 
         const onDown = (e) => {
             if (this.state !== 'playing') return;
+            if (typeof e.button === 'number' && e.button !== 0) return;
+            if (e.cancelable) e.preventDefault();
+
             onMove(e);
             this._drop();
         };
 
         const onUp = (e) => {
-            if (this.state !== 'playing') return;
-            // 이제 onDown에서 즉시 투하하므로 여기서는 아무것도 하지 않음
+            if (e && e.cancelable) e.preventDefault();
         };
 
-        this.canvas.addEventListener('mousemove', onMove);
-        this.canvas.addEventListener('mousedown', onDown);
-        this.canvas.addEventListener('mouseup', onUp);
-        this.canvas.addEventListener('touchmove', onMove, { passive: false });
-        this.canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            onDown(e);
-        }, { passive: false });
-        this.canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            onUp(e);
-        }, { passive: false });
+        if (window.PointerEvent) {
+            this.canvas.addEventListener('pointermove', onMove, { passive: false });
+            this.canvas.addEventListener('pointerdown', onDown, { passive: false });
+            this.canvas.addEventListener('pointerup', onUp, { passive: false });
+            this.canvas.addEventListener('pointercancel', onUp, { passive: false });
+        } else {
+            this.canvas.addEventListener('mousemove', onMove);
+            this.canvas.addEventListener('mousedown', onDown);
+            this.canvas.addEventListener('mouseup', onUp);
+            this.canvas.addEventListener('touchmove', onMove, { passive: false });
+            this.canvas.addEventListener('touchstart', onDown, { passive: false });
+            this.canvas.addEventListener('touchend', onUp, { passive: false });
+            this.canvas.addEventListener('touchcancel', onUp, { passive: false });
+        }
     },
-
     _drop() {
         if (!this.canDrop || this.state !== 'playing') return;
 

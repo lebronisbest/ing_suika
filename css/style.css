@@ -335,6 +335,7 @@ body::after {
     width: 100%;
     border-radius: 0 0 10px 10px;
     cursor: pointer;
+    touch-action: none;
 }
 
 /* ===== Evolution Panel ===== */

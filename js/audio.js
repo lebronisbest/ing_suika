@@ -260,44 +260,65 @@ const AudioManager = {
             });
         }
 
-        const handleInteraction = () => {
-            const ctx = this._getContext();
-            if (!ctx) return;
-
-            if (ctx.state === 'suspended') {
-                ctx.resume().then(() => {
-                    if (ctx.state === 'running') {
-                        this._onAudioUnlocked();
-                    }
-                }).catch(err => console.error('Audio resume failed:', err));
-            } else if (ctx.state === 'running') {
-                this._onAudioUnlocked();
-            }
-        };
-
-        ['click', 'touchstart', 'touchend', 'mousedown', 'keydown'].forEach(evt => {
-            document.addEventListener(evt, handleInteraction, { passive: false });
+        const handleInteraction = () => this._unlockFromInteraction();
+        const interactionEvents = ['pointerdown', 'touchstart', 'touchend', 'mousedown', 'click', 'keydown'];
+        interactionEvents.forEach((evt) => {
+            document.addEventListener(evt, handleInteraction, { capture: true, passive: true });
         });
     },
 
+    _unlockFromInteraction() {
+        const ctx = this._getContext();
+        if (!ctx) return;
+
+        if (ctx.state === 'running') {
+            this.audioUnlocked = true;
+            this._onAudioUnlocked();
+            return;
+        }
+
+        if (this.resumePromise) return;
+
+        this.resumePromise = ctx.resume()
+            .then(() => {
+                if (ctx.state === 'running') {
+                    this.audioUnlocked = true;
+                    this._onAudioUnlocked();
+                }
+            })
+            .catch(err => console.error('Audio resume failed:', err))
+            .finally(() => {
+                this.resumePromise = null;
+            });
+    },
+
     _onAudioUnlocked() {
-        if (this.bgmStarted || this.muted) return;
+        const ctx = this._getContext();
+        if (!ctx || ctx.state !== 'running') return;
 
         // 무음 오실레이터로 하드웨어 채널 점유
-        try {
-            const ctx = this._getContext();
-            const osc = ctx.createOscillator();
-            const g = ctx.createGain();
-            g.gain.value = 0.0001;
-            osc.connect(g);
-            g.connect(ctx.destination);
-            osc.start(0);
-            osc.stop(0.05);
+        if (!this.primed) {
+            try {
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                g.gain.value = 0.0001;
+                osc.connect(g);
+                g.connect(ctx.destination);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.05);
+            } catch (e) {
+                console.error('Audio prime failed:', e);
+            }
+            this.primed = true;
+        }
 
+        if (this.muted) return;
+
+        if (!this.bgmStarted) {
             this._loadSoundFonts().then(() => {
                 this._ensureBGM();
             });
-        } catch (e) { }
+        }
     },
 
     _getContext() {
@@ -396,14 +417,21 @@ const AudioManager = {
         if (!ctx) return;
 
         // iOS Safari: 매 플레이 시도마다 상태 확인 및 강제 재개 시도
-        if (ctx.state === 'suspended') {
-            ctx.resume();
+        if (ctx.state !== 'running') {
+            this._unlockFromInteraction();
+            if (this.resumePromise) {
+                this.resumePromise.then(() => {
+                    const runningCtx = this._getContext();
+                    if (!runningCtx || runningCtx.state !== 'running' || this.muted) return;
+                    this._onAudioUnlocked();
+                    this._playSynth(name);
+                });
+            }
+            return;
         }
 
         // BGM 로딩 시도 (비동기)
-        if (!this.bgmStarted && !this.muted) {
-            this._ensureBGM();
-        }
+        this._onAudioUnlocked();
 
         // 효과음은 네트워크 환경과 무관하게 즉시 신시사이저로 재생
         this._playSynth(name);
@@ -478,6 +506,7 @@ const AudioManager = {
         } else {
             if (this.bgmGain) this.bgmGain.gain.value = 0.55;
             if (this.sfxGain) this.sfxGain.gain.value = 1;
+            this._unlockFromInteraction();
             this.startBGM();
         }
     },

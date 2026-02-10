@@ -1,6 +1,17 @@
 const Game = {
     canvas: null,
     ctx: null,
+    renderDpr: 1,
+    lowPowerMode: false,
+    bgLayer: null,
+    frameCount: 0,
+    gameOverCheckEvery: 2,
+    perfEnabled: false,
+    perfNode: null,
+    perfLastTs: 0,
+    perfFrameCount: 0,
+    perfFrameMsEma: 16.7,
+    perfWindowStart: 0,
     state: 'loading',
     score: 0,
     combo: 0,
@@ -16,20 +27,26 @@ const Game = {
 
     async init() {
         this.canvas = document.getElementById('game-canvas');
+        this.lowPowerMode = this._detectLowPowerMode();
+        this.perfEnabled = new URLSearchParams(window.location.search).has('perf');
 
-        // 고해상도 디스플레이 대응 (Retina, 4K 등)
-        const dpr = window.devicePixelRatio || 1;
-        this.canvas.width = Physics.CANVAS_WIDTH * dpr;
-        this.canvas.height = Physics.CANVAS_HEIGHT * dpr;
+        const dprCap = this.lowPowerMode ? 1.5 : 2;
+        this.renderDpr = Math.min(window.devicePixelRatio || 1, dprCap);
+        this.canvas.width = Math.floor(Physics.CANVAS_WIDTH * this.renderDpr);
+        this.canvas.height = Math.floor(Physics.CANVAS_HEIGHT * this.renderDpr);
 
         this.ctx = this.canvas.getContext('2d');
-
-        // 캔버스 스케일링으로 고해상도 렌더링
-        this.ctx.scale(dpr, dpr);
-
-        // 이미지 렌더링 품질 향상
+        this.ctx.scale(this.renderDpr, this.renderDpr);
         this.ctx.imageSmoothingEnabled = true;
-        this.ctx.imageSmoothingQuality = 'high';
+        this.ctx.imageSmoothingQuality = this.lowPowerMode ? 'medium' : 'high';
+
+        ItemManager.configureRender({
+            dpr: this.renderDpr,
+            lowPower: this.lowPowerMode,
+        });
+
+        this._buildBackgroundLayer();
+        this._initPerfOverlay();
 
         await ItemManager.preload();
 
@@ -42,8 +59,12 @@ const Game = {
     },
 
     start() {
+        Physics.configure({ lowPower: this.lowPowerMode });
         Physics.init();
         Effects.clear();
+        this.frameCount = 0;
+        this.perfWindowStart = 0;
+        this.perfFrameCount = 0;
         this.score = 0;
         this.combo = 0;
         this.canDrop = true;
@@ -144,11 +165,12 @@ const Game = {
             this.canvas.addEventListener('touchcancel', onCancel, { passive: false });
         }
     },
+
     _drop() {
         if (!this.canDrop || this.state !== 'playing') return;
 
         this.canDrop = false;
-        const body = Physics.createCircle(this.dropX, 40, this.currentTier);
+        Physics.createCircle(this.dropX, 40, this.currentTier);
 
         AudioManager.play('drop');
 
@@ -231,8 +253,8 @@ const Game = {
             UI.updateScore(this.score);
 
             const canvasRect = this.canvas.getBoundingClientRect();
-            const scaleX = canvasRect.width / this.canvas.width;
-            const scaleY = canvasRect.height / this.canvas.height;
+            const scaleX = canvasRect.width / Physics.CANVAS_WIDTH;
+            const scaleY = canvasRect.height / Physics.CANVAS_HEIGHT;
             const container = document.getElementById('game-container');
             const containerRect = container.getBoundingClientRect();
 
@@ -255,7 +277,6 @@ const Game = {
             this.state = 'gameover';
             this.canDrop = false;
 
-            // 물리 엔진 즉시 정지
             Physics.freeze();
 
             if (this.comboTimer) {
@@ -270,22 +291,32 @@ const Game = {
     _gameLoop() {
         if (this.state === 'loading') return;
 
+        const now = performance.now();
+        if (this.perfLastTs > 0) {
+            const frameMs = now - this.perfLastTs;
+            this.perfFrameMsEma = this.perfFrameMsEma * 0.9 + frameMs * 0.1;
+        }
+        this.perfLastTs = now;
+        this.frameCount++;
+        this.perfFrameCount++;
+
         Physics.update();
         Effects.update();
 
-        if (this.state === 'playing') {
+        if (this.state === 'playing' && this.frameCount % this.gameOverCheckEvery === 0) {
             this._checkGameOver();
         }
 
         this._render();
+        this._updatePerfOverlay(now);
 
         this.animFrame = requestAnimationFrame(() => this._gameLoop());
     },
 
     _render() {
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+        const w = Physics.CANVAS_WIDTH;
+        const h = Physics.CANVAS_HEIGHT;
 
         ctx.save();
 
@@ -294,24 +325,10 @@ const Game = {
 
         ctx.clearRect(-10, -10, w + 20, h + 20);
 
-        // sky blue background
-        const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
-        bgGrad.addColorStop(0, '#e8f4fd');
-        bgGrad.addColorStop(1, '#d4ecf9');
-        ctx.fillStyle = bgGrad;
-        ctx.fillRect(0, 0, w, h);
+        if (this.bgLayer) {
+            ctx.drawImage(this.bgLayer, 0, 0);
+        }
 
-        // deadline line (soft dashed)
-        ctx.strokeStyle = 'rgba(66, 165, 245, 0.35)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 6]);
-        ctx.beginPath();
-        ctx.moveTo(0, Physics.DEADLINE_Y);
-        ctx.lineTo(w, Physics.DEADLINE_Y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // drop preview & guide
         if (this.state === 'playing' && this.canDrop) {
             ctx.strokeStyle = 'rgba(66, 165, 245, 0.18)';
             ctx.lineWidth = 1;
@@ -325,7 +342,6 @@ const Game = {
             ItemManager.drawItem(ctx, this.currentTier, this.dropX, 40, ITEMS[this.currentTier].radius, 0.65);
         }
 
-        // items
         for (const body of Physics.bodies) {
             if (body.label !== 'item') continue;
             const tier = body.tier;
@@ -342,7 +358,68 @@ const Game = {
         Effects.draw(ctx);
 
         ctx.restore();
-    }
+    },
+
+    _detectLowPowerMode() {
+        const isTouchDevice = navigator.maxTouchPoints > 0;
+        const mobileUA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+        return isTouchDevice || mobileUA;
+    },
+
+    _buildBackgroundLayer() {
+        const c = document.createElement('canvas');
+        c.width = Physics.CANVAS_WIDTH;
+        c.height = Physics.CANVAS_HEIGHT;
+        const g = c.getContext('2d');
+
+        const bgGrad = g.createLinearGradient(0, 0, 0, Physics.CANVAS_HEIGHT);
+        bgGrad.addColorStop(0, '#e8f4fd');
+        bgGrad.addColorStop(1, '#d4ecf9');
+        g.fillStyle = bgGrad;
+        g.fillRect(0, 0, Physics.CANVAS_WIDTH, Physics.CANVAS_HEIGHT);
+
+        g.strokeStyle = 'rgba(66, 165, 245, 0.35)';
+        g.lineWidth = 2;
+        g.setLineDash([6, 6]);
+        g.beginPath();
+        g.moveTo(0, Physics.DEADLINE_Y);
+        g.lineTo(Physics.CANVAS_WIDTH, Physics.DEADLINE_Y);
+        g.stroke();
+        g.setLineDash([]);
+
+        this.bgLayer = c;
+    },
+
+    _initPerfOverlay() {
+        if (!this.perfEnabled) return;
+        const node = document.createElement('div');
+        node.style.position = 'fixed';
+        node.style.top = '8px';
+        node.style.left = '8px';
+        node.style.zIndex = '9999';
+        node.style.padding = '4px 6px';
+        node.style.borderRadius = '6px';
+        node.style.background = 'rgba(0,0,0,0.55)';
+        node.style.color = '#fff';
+        node.style.font = '12px monospace';
+        node.style.pointerEvents = 'none';
+        node.textContent = 'fps: -- ms: --';
+        document.body.appendChild(node);
+        this.perfNode = node;
+    },
+
+    _updatePerfOverlay(now) {
+        if (!this.perfNode) return;
+        if (!this.perfWindowStart) this.perfWindowStart = now;
+
+        const elapsed = now - this.perfWindowStart;
+        if (elapsed < 400) return;
+
+        const fps = (this.perfFrameCount * 1000) / elapsed;
+        this.perfNode.textContent = `fps:${fps.toFixed(1)} ms:${this.perfFrameMsEma.toFixed(1)} bodies:${Physics.bodies.length} fx:${Effects.particles.length}`;
+        this.perfWindowStart = now;
+        this.perfFrameCount = 0;
+    },
 };
 
 window.addEventListener('DOMContentLoaded', () => Game.init());

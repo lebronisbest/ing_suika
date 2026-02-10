@@ -1,12 +1,15 @@
 const Effects = {
     particles: [],
     comboTexts: [],
+    MAX_PARTICLES: 260,
     shakeAmount: 0,
     shakeDuration: 0,
 
     createMergeEffect(x, y, color, tier) {
         const count = 8 + tier * 2;
-        for (let i = 0; i < count; i++) {
+        const slots = Math.max(0, this.MAX_PARTICLES - this.particles.length);
+        const spawnCount = Math.min(count, slots);
+        for (let i = 0; i < spawnCount; i++) {
             const angle = (Math.PI * 2 / count) * i + Math.random() * 0.5;
             const speed = 2 + Math.random() * 4 + tier * 0.5;
             this.particles.push({
@@ -24,7 +27,9 @@ const Effects = {
         // sparkle stars for bigger merges
         if (tier >= 4) {
             const starCount = 3 + tier;
-            for (let i = 0; i < starCount; i++) {
+            const starSlots = Math.max(0, this.MAX_PARTICLES - this.particles.length);
+            const starSpawn = Math.min(starCount, starSlots);
+            for (let i = 0; i < starSpawn; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const speed = 1.5 + Math.random() * 2.5;
                 this.particles.push({
@@ -45,7 +50,10 @@ const Effects = {
     createMaxMergeEffect(x, y) {
         for (let ring = 0; ring < 3; ring++) {
             const count = 16 + ring * 8;
-            for (let i = 0; i < count; i++) {
+            const slots = Math.max(0, this.MAX_PARTICLES - this.particles.length);
+            if (slots <= 0) break;
+            const spawnCount = Math.min(count, slots);
+            for (let i = 0; i < spawnCount; i++) {
                 const angle = (Math.PI * 2 / count) * i;
                 const speed = 3 + ring * 2 + Math.random() * 3;
                 const colors = ['#7EC8E3', '#AED6F1', '#FFD700', '#fff', '#42A5F5'];
@@ -81,7 +89,8 @@ const Effects = {
     },
 
     update() {
-        for (let i = this.particles.length - 1; i >= 0; i--) {
+        let write = 0;
+        for (let i = 0; i < this.particles.length; i++) {
             const p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
@@ -89,10 +98,11 @@ const Effects = {
             p.alpha -= p.decay;
             p.radius *= 0.98;
 
-            if (p.alpha <= 0 || p.radius < 0.5) {
-                this.particles.splice(i, 1);
+            if (p.alpha > 0 && p.radius >= 0.5) {
+                this.particles[write++] = p;
             }
         }
+        this.particles.length = write;
 
         if (this.shakeDuration > 0) {
             this.shakeDuration--;
@@ -104,24 +114,24 @@ const Effects = {
 
     draw(ctx) {
         for (const p of this.particles) {
-            ctx.save();
             ctx.globalAlpha = p.alpha;
 
             if (p.isStar) {
                 // draw a little star/sparkle
+                ctx.save();
                 ctx.fillStyle = p.color;
                 ctx.translate(p.x, p.y);
                 this._drawStar(ctx, 0, 0, 4, p.radius, p.radius * 0.4);
                 ctx.fill();
+                ctx.restore();
             } else {
                 ctx.fillStyle = p.color;
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
                 ctx.fill();
             }
-
-            ctx.restore();
         }
+        ctx.globalAlpha = 1;
     },
 
     _drawStar(ctx, cx, cy, spikes, outerR, innerR) {

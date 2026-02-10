@@ -3,6 +3,7 @@ const Physics = {
     world: null,
     bodies: [],
     _deadlineSince: new Map(),
+    lowPower: false,
 
     CANVAS_WIDTH: 390,
     CANVAS_HEIGHT: 600,
@@ -11,9 +12,17 @@ const Physics = {
     DEADLINE_GRACE_MS: 1500,
     DEADLINE_HOLD_MS: 900,
 
+    configure(options = {}) {
+        this.lowPower = !!options.lowPower;
+    },
+
     init() {
         this.engine = Matter.Engine.create({
             gravity: { x: 0, y: 1.5 },
+            positionIterations: this.lowPower ? 4 : 6,
+            velocityIterations: this.lowPower ? 3 : 4,
+            constraintIterations: this.lowPower ? 1 : 2,
+            enableSleeping: this.lowPower,
         });
         this.world = this.engine.world;
         this.bodies = [];

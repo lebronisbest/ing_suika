@@ -6,6 +6,7 @@ const UI = {
     gameOverOverlay: null,
     nextCanvas: null,
     nextCtx: null,
+    nextDpr: 1,
     evoCanvas: null,
     evoCtx: null,
     pendingScore: 0,
@@ -21,15 +22,18 @@ const UI = {
         this.nextCanvas = document.getElementById('next-canvas');
         this.nextCtx = this.nextCanvas.getContext('2d');
 
-        // 고해상도 디스플레이 대응
-        const dpr = window.devicePixelRatio || 1;
+        // 고해상도 디스플레이 대응 (모바일은 DPR 상한으로 렌더 비용 절감)
+        const lowPower = navigator.maxTouchPoints > 0 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+        const dprCap = lowPower ? 1.5 : 2;
+        const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+        this.nextDpr = dpr;
         const displayWidth = 80;
         const displayHeight = 80;
         this.nextCanvas.width = displayWidth * dpr;
         this.nextCanvas.height = displayHeight * dpr;
         this.nextCtx.scale(dpr, dpr);
         this.nextCtx.imageSmoothingEnabled = true;
-        this.nextCtx.imageSmoothingQuality = 'high';
+        this.nextCtx.imageSmoothingQuality = lowPower ? 'medium' : 'high';
 
         this.evoCanvas = document.getElementById('evolution-canvas');
         if (this.evoCanvas) {
@@ -66,7 +70,7 @@ const UI = {
     drawNextItem(tier) {
         const ctx = this.nextCtx;
         const canvas = this.nextCanvas;
-        const dpr = window.devicePixelRatio || 1;
+        const dpr = this.nextDpr || 1;
 
         // DPR을 고려한 클리어
         ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);

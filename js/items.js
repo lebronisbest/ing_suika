@@ -17,7 +17,17 @@ const MAX_DROP_TIER = 4;
 const ItemManager = {
     images: {},
     loaded: false,
+    spriteCache: {},
+    renderDpr: 1,
+    lowPower: false,
     processedImages: {}, // 고품질 처리된 이미지 캐시
+
+    configureRender(options = {}) {
+        this.renderDpr = Math.max(1, Number(options.dpr) || 1);
+        this.lowPower = !!options.lowPower;
+        this.processedImages = {};
+        this.spriteCache = {};
+    },
 
     preload() {
         return new Promise((resolve) => {
@@ -79,7 +89,8 @@ const ItemManager = {
 
     // 고품질 이미지 전처리 (다운샘플링)
     _getProcessedImage(tier, targetSize) {
-        const cacheKey = `${tier}_${targetSize}`;
+        const roundedSize = Math.max(1, Math.round(targetSize));
+        const cacheKey = `${tier}_${roundedSize}_${this.renderDpr}_${this.lowPower ? 1 : 0}`;
 
         // 캐시된 이미지가 있으면 반환
         if (this.processedImages[cacheKey]) {
@@ -95,15 +106,15 @@ const ItemManager = {
         const sy = (img.height - imgSize) / 2;
 
         // 고해상도 오프스크린 캔버스 생성
-        const dpr = window.devicePixelRatio || 1;
+        const dpr = this.lowPower ? 1 : Math.max(1, this.renderDpr);
         const canvas = document.createElement('canvas');
-        const size = targetSize * dpr * 2; // 2배 크기로 생성하여 품질 향상
+        const size = Math.max(1, Math.round(targetSize * dpr * 1.4));
         canvas.width = size;
         canvas.height = size;
 
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
+        ctx.imageSmoothingQuality = this.lowPower ? 'medium' : 'high';
 
         // 고품질로 이미지 그리기
         ctx.drawImage(img, sx, sy, imgSize, imgSize, 0, 0, size, size);
@@ -111,6 +122,50 @@ const ItemManager = {
         // 캐시에 저장
         this.processedImages[cacheKey] = canvas;
         return canvas;
+    },
+
+    _getSprite(tier, radius) {
+        if (!this.images[tier]) return null;
+
+        const roundedR = Math.max(1, Math.round(radius * 2) / 2);
+        const cacheKey = `${tier}_${roundedR}_${this.renderDpr}_${this.lowPower ? 1 : 0}`;
+        if (this.spriteCache[cacheKey]) {
+            return this.spriteCache[cacheKey];
+        }
+
+        const pad = Math.ceil(roundedR * 0.95);
+        const logicalSize = Math.ceil(roundedR * 2 + pad * 2);
+        const scale = this.lowPower ? 1 : Math.max(1, this.renderDpr);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.ceil(logicalSize * scale));
+        canvas.height = Math.max(1, Math.ceil(logicalSize * scale));
+
+        const sctx = canvas.getContext('2d');
+        sctx.scale(scale, scale);
+        sctx.imageSmoothingEnabled = true;
+        sctx.imageSmoothingQuality = this.lowPower ? 'medium' : 'high';
+
+        const center = pad + roundedR;
+        this._draw3DSphere(sctx, ITEMS[tier], tier, center, center, roundedR);
+
+        const sprite = { canvas, center, logicalSize };
+        this.spriteCache[cacheKey] = sprite;
+        return sprite;
+    },
+
+    _drawCachedSprite(ctx, tier, x, y, radius) {
+        const sprite = this._getSprite(tier, radius);
+        if (!sprite) return false;
+
+        ctx.drawImage(
+            sprite.canvas,
+            x - sprite.center,
+            y - sprite.center,
+            sprite.logicalSize,
+            sprite.logicalSize
+        );
+        return true;
     },
 
     drawItem(ctx, tier, x, y, radius, alpha) {
@@ -121,7 +176,9 @@ const ItemManager = {
         ctx.globalAlpha = alpha !== undefined ? alpha : 1;
 
         if (this.images[tier]) {
-            this._draw3DSphere(ctx, item, tier, x, y, radius);
+            if (!this._drawCachedSprite(ctx, tier, x, y, radius)) {
+                this._draw3DSphere(ctx, item, tier, x, y, radius);
+            }
         } else {
             this._drawFallback(ctx, item, tier, x, y, radius);
         }

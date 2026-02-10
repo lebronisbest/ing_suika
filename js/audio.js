@@ -1,4 +1,5 @@
 const AudioManager = {
+    assetVersion: '20260211_orig_bgm',
     muted: false,
     unlocked: false,
     unlockPromise: null,
@@ -59,7 +60,8 @@ const AudioManager = {
     },
 
     _createAudio(src, loop) {
-        const audio = new Audio(src);
+        const joiner = src.includes('?') ? '&' : '?';
+        const audio = new Audio(`${src}${joiner}v=${this.assetVersion}`);
         audio.preload = 'auto';
         audio.loop = !!loop;
         audio.playsInline = true;

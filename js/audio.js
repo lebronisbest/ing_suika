@@ -141,7 +141,7 @@ const AudioManager = {
     _playBGM() {
         if (!this.bgmAudio || this.muted) return;
 
-        this.bgmAudio.volume = 0.4;
+        this.bgmAudio.volume = 1.0;
         const played = this.bgmAudio.play();
         if (played && typeof played.catch === 'function') {
             played.catch(() => {});

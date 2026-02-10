@@ -39,11 +39,6 @@ const Game = {
         this.ctx.imageSmoothingEnabled = true;
         this.ctx.imageSmoothingQuality = 'high';
 
-        ItemManager.configureRender({
-            dpr: this.renderDpr,
-            lowPower: false,
-        });
-
         this._buildBackgroundLayer();
         this._initPerfOverlay();
 

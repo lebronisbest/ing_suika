@@ -92,14 +92,13 @@ const Game = {
 
         const onDown = (e) => {
             if (this.state !== 'playing') return;
-            isPointerDown = true;
             onMove(e);
+            this._drop();
         };
 
         const onUp = (e) => {
-            if (this.state !== 'playing' || !isPointerDown) return;
-            isPointerDown = false;
-            this._drop();
+            if (this.state !== 'playing') return;
+            // 이제 onDown에서 즉시 투하하므로 여기서는 아무것도 하지 않음
         };
 
         this.canvas.addEventListener('mousemove', onMove);
@@ -110,7 +109,10 @@ const Game = {
             e.preventDefault();
             onDown(e);
         }, { passive: false });
-        this.canvas.addEventListener('touchend', onUp);
+        this.canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            onUp(e);
+        }, { passive: false });
     },
 
     _drop() {

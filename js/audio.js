@@ -260,11 +260,23 @@ const AudioManager = {
             });
         }
 
-        const handleInteraction = () => this._unlockFromInteraction();
+        const handleInteraction = () => this.unlock();
         const interactionEvents = ['pointerdown', 'touchstart', 'touchend', 'mousedown', 'click', 'keydown'];
         interactionEvents.forEach((evt) => {
-            document.addEventListener(evt, handleInteraction, { capture: true, passive: true });
+            document.addEventListener(evt, handleInteraction, { capture: true, passive: false });
         });
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) this.unlock();
+        });
+    },
+
+    unlock() {
+        this._unlockFromInteraction();
+        if (this.resumePromise) return this.resumePromise;
+
+        const ctx = this._getContext();
+        return Promise.resolve(!!ctx && ctx.state === 'running');
     },
 
     _unlockFromInteraction() {
@@ -418,15 +430,12 @@ const AudioManager = {
 
         // iOS Safari: 매 플레이 시도마다 상태 확인 및 강제 재개 시도
         if (ctx.state !== 'running') {
-            this._unlockFromInteraction();
-            if (this.resumePromise) {
-                this.resumePromise.then(() => {
-                    const runningCtx = this._getContext();
-                    if (!runningCtx || runningCtx.state !== 'running' || this.muted) return;
-                    this._onAudioUnlocked();
-                    this._playSynth(name);
-                });
-            }
+            this.unlock().then(() => {
+                const runningCtx = this._getContext();
+                if (!runningCtx || runningCtx.state !== 'running' || this.muted) return;
+                this._onAudioUnlocked();
+                this._playSynth(name);
+            });
             return;
         }
 

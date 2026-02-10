@@ -107,6 +107,7 @@ const Game = {
             if (typeof e.button === 'number' && e.button !== 0) return;
             if (e.cancelable) e.preventDefault();
 
+            AudioManager.unlock();
             onMove(e);
             this._drop();
         };

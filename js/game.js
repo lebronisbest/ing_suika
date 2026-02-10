@@ -34,7 +34,7 @@ const Game = {
         this.canvas.width = Math.floor(Physics.CANVAS_WIDTH * this.renderDpr);
         this.canvas.height = Math.floor(Physics.CANVAS_HEIGHT * this.renderDpr);
 
-        this.ctx = this.canvas.getContext('2d', { alpha: false, desynchronized: true }) || this.canvas.getContext('2d');
+        this.ctx = this.canvas.getContext('2d');
         this.ctx.scale(this.renderDpr, this.renderDpr);
         this.ctx.imageSmoothingEnabled = true;
         this.ctx.imageSmoothingQuality = 'high';

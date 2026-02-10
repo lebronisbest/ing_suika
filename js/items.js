@@ -89,8 +89,7 @@ const ItemManager = {
 
     // 고품질 이미지 전처리 (다운샘플링)
     _getProcessedImage(tier, targetSize) {
-        const roundedSize = Math.max(1, Math.round(targetSize));
-        const cacheKey = `${tier}_${roundedSize}_${this.renderDpr}_${this.lowPower ? 1 : 0}`;
+        const cacheKey = `${tier}_${targetSize}_${this.renderDpr}`;
 
         // 캐시된 이미지가 있으면 반환
         if (this.processedImages[cacheKey]) {
@@ -108,7 +107,7 @@ const ItemManager = {
         // 고해상도 오프스크린 캔버스 생성
         const dpr = Math.max(1, this.renderDpr);
         const canvas = document.createElement('canvas');
-        const size = Math.max(1, Math.round(targetSize * dpr * 2));
+        const size = Math.max(1, targetSize * dpr * 2);
         canvas.width = size;
         canvas.height = size;
 
@@ -180,9 +179,7 @@ const ItemManager = {
         }
 
         if (this.images[tier]) {
-            if (!this._drawCachedSprite(ctx, tier, x, y, radius)) {
-                this._draw3DSphere(ctx, item, tier, x, y, radius);
-            }
+            this._draw3DSphere(ctx, item, tier, x, y, radius);
         } else {
             this._drawFallback(ctx, item, tier, x, y, radius);
         }

@@ -245,6 +245,9 @@ const AudioManager = {
     bgmStarted: false,
     sfLoading: false,
     sfLoaded: false,
+    audioUnlocked: false,
+    resumePromise: null,
+    primed: false,
     init() {
         this.muted = localStorage.getItem('suika_muted') === 'true';
         this._updateMuteButton();

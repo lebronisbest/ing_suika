@@ -77,9 +77,15 @@ const Game = {
 
         const getX = (e) => {
             const rect = this.canvas.getBoundingClientRect();
-            const scaleX = this.canvas.width / rect.width;
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            return (clientX - rect.left) * scaleX;
+            // 터치/마우스 좌표 추출
+            const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX :
+                (e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0].clientX : e.clientX);
+
+            // 캔버스 내에서의 비율 (0.0 ~ 1.0)
+            const ratio = (clientX - rect.left) / rect.width;
+
+            // 게임 논리 좌표계(390px)로 변환
+            return ratio * Physics.CANVAS_WIDTH;
         };
 
         const onMove = (e) => {

@@ -21,7 +21,11 @@ const UI = {
         this.nextCanvas = document.getElementById('next-canvas');
         this.nextCtx = this.nextCanvas.getContext('2d');
         this.evoCanvas = document.getElementById('evolution-canvas');
-        this.evoCtx = this.evoCanvas.getContext('2d');
+        if (this.evoCanvas) {
+            this.evoCtx = this.evoCanvas.getContext('2d');
+        } else {
+            this.evoCtx = null;
+        }
 
         const best = this.getBestScore();
         this.bestScoreEl.textContent = best;

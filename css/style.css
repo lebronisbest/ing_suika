@@ -94,8 +94,7 @@ body::after {
 
 /* 꾸꾸: 우측 하단 */
 #kkukku {
-    right: calc(50% - 380px);
-    /* Move further out if window is wide */
+    right: calc(50% - 340px);
     bottom: 30px;
     width: 180px;
     opacity: 0.85;
@@ -104,24 +103,60 @@ body::after {
 
 /* 나나: 좌측 상단 */
 #nana {
-    left: calc(50% - 380px);
+    left: calc(50% - 340px);
     top: 30px;
     width: 180px;
     opacity: 0.85;
     animation: nanaFloat 4.5s ease-in-out infinite;
 }
 
+@keyframes kkukkuFloat {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(-8px) rotate(2deg);
+    }
+}
+
+@keyframes nanaFloat {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(-7px) rotate(-2deg);
+    }
+}
+
 @media (max-width: 900px) {
     #kkukku {
-        right: -20px;
+        right: -10px;
         bottom: 10px;
-        width: 140px;
+        width: 120px;
+        opacity: 0.6;
     }
 
     #nana {
-        left: -20px;
+        left: -10px;
         top: 60px;
-        width: 140px;
+        width: 120px;
+        opacity: 0.6;
+    }
+}
+
+
+@media (max-height: 700px) {
+
+    #kkukku,
+    #nana {
+        width: 100px;
+        /* Shrink mascots on short screens */
     }
 }
 
@@ -142,11 +177,14 @@ body::after {
 /* ===== Layout ===== */
 #game-wrapper {
     position: relative;
-    width: 400px;
-    max-width: 100vw;
+    width: 100%;
+    max-width: 420px;
+    /* Increased slightly for better desktop view, shrinks on mobile */
     display: flex;
     flex-direction: column;
     align-items: center;
+    padding-bottom: 20px;
+    /* Add some bottom padding for scroll/safe area */
 }
 
 /* ===== Top Bar ===== */
@@ -614,17 +652,19 @@ body::after {
 }
 
 /* ===== Mute Button ===== */
+
 #mute-btn {
     position: absolute;
-    bottom: 16px;
-    right: 16px;
+    bottom: 20px;
+    right: 20px;
     background: radial-gradient(circle at 35% 30%,
             rgba(255, 255, 255, 0.4) 0%,
             rgba(135, 206, 235, 0.2) 100%);
     border: 2px solid rgba(255, 255, 255, 0.45);
     color: #fff;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    /* Larger touch target */
+    height: 44px;
     border-radius: 50%;
     cursor: pointer;
     font-size: 15px;
@@ -675,37 +715,70 @@ body::after {
 /* ===== Responsive ===== */
 @media (max-width: 420px) {
     #game-wrapper {
-        width: 100vw;
+        width: 100%;
+        max-width: 100%;
     }
 
     .panel-body {
+        width: 75px !important;
+        height: 75px !important;
+    }
+
+    #score-panel .panel-body {
         width: 85px !important;
         height: 85px !important;
     }
 
-    #score-panel .panel-body {
-        width: 95px !important;
-        height: 95px !important;
+    .panel-label {
+        font-size: 12px;
     }
 
     #score {
-        font-size: 26px;
+        font-size: 24px;
     }
 
     #best-score {
-        font-size: 14px;
+        font-size: 13px;
+    }
+
+    #next-canvas {
+        width: 45px;
+        height: 45px;
     }
 
     #box-frame {
         border-radius: 0;
-        padding: 0 6px 6px 6px;
+        padding: 0 4px 12px 4px;
+        /* Slightly reduced side padding */
     }
 
     #game-canvas {
-        border-radius: 0;
+        border-radius: 0 0 8px 8px;
     }
 
     #game-over-overlay {
         border-radius: 0;
+    }
+
+    /* Make buttons easier to tap */
+    #restart-btn {
+        padding: 14px 40px;
+    }
+}
+
+/* Very small screens */
+@media (max-width: 360px) {
+    .panel-body {
+        width: 65px !important;
+        height: 65px !important;
+    }
+
+    #score-panel .panel-body {
+        width: 75px !important;
+        height: 75px !important;
+    }
+
+    #score {
+        font-size: 20px;
     }
 }

@@ -25,25 +25,25 @@
 // ╚════════════════════════════════════════════════════════════════╝
 
 const BGM_VOICES = {
-    melody:   '0080',   // Celesta — 맑고 결정 같은 청량한 소리
-    bass:     '0320',   // Acoustic Bass
-    chords:   '0880',   // New Age Pad — 공기감 있는 패드
+    melody: '0080',   // Celesta — 맑고 결정 같은 청량한 소리
+    bass: '0320',   // Acoustic Bass
+    chords: '0880',   // New Age Pad — 공기감 있는 패드
     arpeggio: '0090',   // Glockenspiel — 반짝이는 스파클
 };
 
 // 사운드폰트 이름 (다른 폰트: 'JCLive_sf2_file', 'SoundBlasterOld_sf2')
 const SOUNDFONT = 'FluidR3_GM_sf2_file';
-const FONT_URL  = 'https://surikov.github.io/webaudiofontdata/sound/';
+const FONT_URL = 'https://surikov.github.io/webaudiofontdata/sound/';
 
 
 // ─── helpers ───
 function noteFreq(name) {
-    const m = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
-    return 440 * Math.pow(2, (m[name.slice(0,-1)] + (parseInt(name.slice(-1))+1)*12 - 69) / 12);
+    const m = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    return 440 * Math.pow(2, (m[name.slice(0, -1)] + (parseInt(name.slice(-1)) + 1) * 12 - 69) / 12);
 }
 function noteToMidi(name) {
-    const m = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
-    return m[name.slice(0,-1)] + (parseInt(name.slice(-1))+1) * 12;
+    const m = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    return m[name.slice(0, -1)] + (parseInt(name.slice(-1)) + 1) * 12;
 }
 
 
@@ -109,26 +109,26 @@ const BGM = {
     // ── Progression: C G Am Em | F G C C | Am Em F G | F G C C ──
     // 펜타토닉 기반 멜로디 (C D E G A) — 맑고 청량한 느낌
     melody: [
-        null,null,'G5',null,  null,'E5',null,null,
-        null,null,null,'A5',  null,null,'G5',null,
-        null,'A5',null,null,  null,null,'G5','E5',
-        null,null,null,null,  null,null,'D5',null,
-        null,'E5',null,'C5',  null,null,null,'D5',
-        'E5',null,null,'G5',  null,null,null,null,
-        'A5',null,null,null,  null,'G5',null,'E5',
-        'G5',null,null,null,  null,null,null,null,
+        null, null, 'G5', null, null, 'E5', null, null,
+        null, null, null, 'A5', null, null, 'G5', null,
+        null, 'A5', null, null, null, null, 'G5', 'E5',
+        null, null, null, null, null, null, 'D5', null,
+        null, 'E5', null, 'C5', null, null, null, 'D5',
+        'E5', null, null, 'G5', null, null, null, null,
+        'A5', null, null, null, null, 'G5', null, 'E5',
+        'G5', null, null, null, null, null, null, null,
     ],
-    bass: ['C3','G2','A2','E2','F2','G2','C3','C3',
-           'A2','E2','F2','G2','F2','G2','C3','C3'],
+    bass: ['C3', 'G2', 'A2', 'E2', 'F2', 'G2', 'C3', 'C3',
+        'A2', 'E2', 'F2', 'G2', 'F2', 'G2', 'C3', 'C3'],
     chords: [
-        ['C4','E4','G4'],['G3','B3','D4'],
-        ['A3','C4','E4'],['E3','G3','B3'],
-        ['F3','A3','C4'],['G3','B3','D4'],
-        ['C4','E4','G4'],['C4','E4','G4'],
-        ['A3','C4','E4'],['E3','G3','B3'],
-        ['F3','A3','C4'],['G3','B3','D4'],
-        ['F3','A3','C4'],['G3','B3','D4'],
-        ['C3','E3','G3'],['C4','E4','G4'],
+        ['C4', 'E4', 'G4'], ['G3', 'B3', 'D4'],
+        ['A3', 'C4', 'E4'], ['E3', 'G3', 'B3'],
+        ['F3', 'A3', 'C4'], ['G3', 'B3', 'D4'],
+        ['C4', 'E4', 'G4'], ['C4', 'E4', 'G4'],
+        ['A3', 'C4', 'E4'], ['E3', 'G3', 'B3'],
+        ['F3', 'A3', 'C4'], ['G3', 'B3', 'D4'],
+        ['F3', 'A3', 'C4'], ['G3', 'B3', 'D4'],
+        ['C3', 'E3', 'G3'], ['C4', 'E4', 'G4'],
     ],
 
     start(ctx, dest) {
@@ -249,15 +249,35 @@ const AudioManager = {
     init() {
         this.muted = localStorage.getItem('suika_muted') === 'true';
         this._updateMuteButton();
-        document.getElementById('mute-btn').addEventListener('click', () => this.toggleMute());
+        const muteBtn = document.getElementById('mute-btn');
+        if (muteBtn) {
+            muteBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // 오디오 잠금 해제와 충돌 방지
+                this.toggleMute();
+            });
+        }
 
         const resume = () => {
             const c = this._getContext();
-            if (c.state === 'suspended') c.resume();
-            this._ensureBGM();
+            if (c && c.state === 'suspended') {
+                c.resume();
+            }
+
+            // 모바일 사운드 잠금 해제를 위한 무음 재생
+            if (c && c.state === 'running' && !this.bgmStarted && !this.muted) {
+                const buffer = c.createBuffer(1, 1, 22050);
+                const source = c.createBufferSource();
+                source.buffer = buffer;
+                source.connect(c.destination);
+                source.start(0);
+                this._ensureBGM();
+            }
         };
-        document.addEventListener('pointerdown', resume, { once: true });
-        document.addEventListener('keydown', resume, { once: true });
+
+        // iOS Safari 등 다양한 모바일 브라우저 대응을 위한 여러 이벤트 등록
+        ['click', 'touchstart', 'pointerdown', 'keydown'].forEach(evt => {
+            document.addEventListener(evt, resume, { once: true });
+        });
     },
 
     _getContext() {
@@ -428,7 +448,7 @@ const AudioManager = {
                 });
                 // BGM 계속 재생 (멈추지 않음)
             }
-        } catch (e) {}
+        } catch (e) { }
     },
 
     // ── Mute ──

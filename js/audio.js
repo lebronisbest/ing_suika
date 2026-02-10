@@ -388,9 +388,21 @@ const AudioManager = {
 
     play(name) {
         if (this.muted) return;
+
         const ctx = this._getContext();
-        if (ctx && ctx.state === 'suspended') ctx.resume();
-        this._ensureBGM();
+        if (!ctx) return;
+
+        // iOS Safari: 매 플레이 시도마다 상태 확인 및 강제 재개 시도
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+
+        // BGM 로딩 시도 (비동기)
+        if (!this.bgmStarted && !this.muted) {
+            this._ensureBGM();
+        }
+
+        // 효과음은 네트워크 환경과 무관하게 즉시 신시사이저로 재생
         this._playSynth(name);
     },
 
@@ -398,53 +410,58 @@ const AudioManager = {
         if (this.muted) return;
         try {
             const ctx = this._getContext();
-            if (!ctx || ctx.state !== 'running') return;
+            if (!ctx) return;
+
+            // ctx.state 체크를 느슨하게 하여 터치 직후 즉시 재생 보장
             const now = ctx.currentTime;
             const dest = this.sfxGain;
+            if (!dest) return;
 
             if (name === 'drop') {
                 const o = ctx.createOscillator(), g = ctx.createGain();
                 o.type = 'triangle';
-                o.frequency.setValueAtTime(880, now);
-                o.frequency.exponentialRampToValueAtTime(660, now + 0.08);
-                g.gain.setValueAtTime(0.18, now);
-                g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                o.frequency.setValueAtTime(800, now);
+                o.frequency.exponentialRampToValueAtTime(400, now + 0.1);
+                g.gain.setValueAtTime(0.15, now);
+                g.gain.linearRampToValueAtTime(0.001, now + 0.12);
                 o.connect(g); g.connect(dest);
                 o.start(now); o.stop(now + 0.13);
             } else if (name === 'merge') {
-                [0, 0.06].forEach((delay, i) => {
+                [0, 0.05].forEach((delay, i) => {
                     const o = ctx.createOscillator(), g = ctx.createGain();
                     o.type = i === 0 ? 'sine' : 'triangle';
-                    const base = i === 0 ? 520 : 780;
+                    const base = i === 0 ? 440 : 660;
                     o.frequency.setValueAtTime(base, now + delay);
-                    o.frequency.exponentialRampToValueAtTime(base * 1.5, now + delay + 0.12);
-                    g.gain.setValueAtTime(i === 0 ? 0.18 : 0.08, now + delay);
-                    g.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.18);
+                    o.frequency.exponentialRampToValueAtTime(base * 1.5, now + delay + 0.1);
+                    g.gain.setValueAtTime(0.15, now + delay);
+                    g.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.15);
                     o.connect(g); g.connect(dest);
-                    o.start(now + delay); o.stop(now + delay + 0.2);
+                    o.start(now + delay); o.stop(now + delay + 0.16);
                 });
             } else if (name === 'combo') {
-                [523, 659, 784, 1047].forEach((freq, i) => {
+                [523.25, 659.25, 783.99].forEach((freq, i) => {
                     const o = ctx.createOscillator(), g = ctx.createGain();
-                    o.type = 'triangle'; o.frequency.value = freq;
-                    const t = now + i * 0.06;
+                    o.type = 'sine'; o.frequency.value = freq;
+                    const t = now + i * 0.07;
                     g.gain.setValueAtTime(0.12, t);
-                    g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
                     o.connect(g); g.connect(dest);
-                    o.start(t); o.stop(t + 0.16);
+                    o.start(t); o.stop(t + 0.21);
                 });
             } else if (name === 'gameover') {
-                [659, 523, 392].forEach((freq, i) => {
+                [392, 330, 261].forEach((freq, i) => {
                     const o = ctx.createOscillator(), g = ctx.createGain();
                     o.type = 'triangle'; o.frequency.value = freq;
-                    const t = now + i * 0.25;
+                    const t = now + i * 0.2;
                     g.gain.setValueAtTime(0.2, t);
-                    g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+                    g.gain.linearRampToValueAtTime(0.001, t + 0.5);
                     o.connect(g); g.connect(dest);
-                    o.start(t); o.stop(t + 0.42);
+                    o.start(t); o.stop(t + 0.51);
                 });
             }
-        } catch (e) { }
+        } catch (e) {
+            console.error('Synth play failed:', e);
+        }
     },
 
     toggleMute() {
